@@ -22,7 +22,7 @@ app.config['JWT_ACCESS_COOKIE_NAME'] = 'access_token'
 app.config['JWT_REFRESH_COOKIE_NAME'] = 'refresh_token'
 app.config["JWT_TOKEN_LOCATION"] = ["cookies", "headers"]
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = datetime.timedelta(hours=15)
-app.config["JWT_COOKIE_SECURE"] = True
+app.config["JWT_COOKIE_SECURE"] = False
 app.config["JWT_SECRET_KEY"] = "super-secret"
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 app.config['JWT_HEADER_NAME'] = "Cookie"
@@ -33,7 +33,6 @@ db.init_app(app)
 app.app_context().push()
 CORS(app)
 jwt = JWTManager(app)
-
 # JWT Config to enable current_user
 @jwt.user_identity_loader
 def user_identity_lookup(user):
@@ -122,32 +121,106 @@ def logout_action():
 @jwt_required()
 def home_page(pokemon_id=1):
     # update pass relevant data to template
-    return render_template("home.html")
+    all_pokemon = Pokemon.query.order_by(Pokemon.id).all()
+    selected_pokemon = Pokemon.query.get(pokemon_id) or Pokemon.query.get(1)
+    captured_pokemon = current_user.pokemon
+    return render_template(
+        "home.html",
+        pokemon_list=all_pokemon,
+        selected_pokemon=selected_pokemon,
+        captured_pokemon=captured_pokemon
+    )
 
 # Action Routes (To Update)
 
 @app.route("/login", methods=['POST'])
 def login_action():
-  # implement login
-  return "Login Action"
+    username = request.form.get('username')
+    password = request.form.get('password')
+    user = User.query.filter_by(username=username).first()
+
+    if user and user.check_password(password):
+        response = redirect(url_for('home_page'))
+        token = create_access_token(identity=user)
+        set_access_cookies(response, token)
+        flash('Logged in successfully')
+        return response
+    else:
+        flash('Invalid credentials')
+        return redirect(url_for('login_page'))
 
 @app.route("/pokemon/<int:pokemon_id>", methods=['POST'])
 @jwt_required()
 def capture_action(pokemon_id):
-  # implement save newly captured pokemon, show a message then reload page
-  return redirect(request.referrer)
+    pokemon_name = request.form.get('pokemon_name', '').strip()
+    
+    if not pokemon_name:
+        flash('Please provide a name for your Pokemon')
+        return redirect(url_for('home_page'))
+    
+    pokemon = Pokemon.query.get(pokemon_id)
+    if not pokemon:
+        flash('Invalid Pokemon')
+        return redirect(url_for('home_page'))
+    
+    new_capture = current_user.catch_pokemon(pokemon_id, pokemon_name)
+    if new_capture:
+        flash(f'Successfully captured {pokemon_name}!')
+        db.session.commit()  
+    else:
+        flash('Capture failed - you may already have this Pokemon')
+    
+    return redirect(url_for('home_page'))
 
-@app.route("/rename-pokemon/<int:pokemon_id>", methods=['POST'])
+@app.route("/rename-pokemon/<int:user_pokemon_id>", methods=['POST'])
 @jwt_required()
-def rename_action(pokemon_id):
-  # implement rename pokemon, show a message then reload page
-  return redirect(request.referrer)
+def rename_action(user_pokemon_id):
+    new_name = request.form.get('pokemon_name', '').strip()
 
-@app.route("/release-pokemon/<int:pokemon_id>", methods=['GET'])
+    if not new_name:
+        flash('Please provide a new name for your Pokemon', 'error')
+        return redirect(request.referrer)
+    
+    user_pokemon = UserPokemon.query.filter_by(id=user_pokemon_id, user_id=current_user.id).first()
+    
+    if not user_pokemon:
+        flash('Pokemon not found in your collection', 'error')
+        return redirect(request.referrer)
+
+    try:
+        user_pokemon.name = new_name
+        db.session.add(user_pokemon) 
+        db.session.commit()
+        flash(f'Pokemon renamed to {new_name}!', 'success')
+    except Exception as e:
+        print(f"Error renaming Pokemon: {e}")
+        db.session.rollback()
+        flash('An error occurred while renaming the Pokemon', 'error')
+    
+    return redirect(request.referrer)
+
+
+@app.route("/release-pokemon/<int:user_pokemon_id>", methods=['POST'])
 @jwt_required()
-def release_action(pokemon_id):
-  # implement release pokemon, show a message then reload page
-  return redirect(request.referrer)
+def release_action(user_pokemon_id):
+
+    user_pokemon = UserPokemon.query.filter_by(id=user_pokemon_id, user_id=current_user.id).first()
+    
+    if not user_pokemon:
+        flash('Pokemon not found in your collection', 'error')
+        return redirect(request.referrer)
+
+    try:
+        db.session.delete(user_pokemon)
+        db.session.commit()
+        flash('Pokemon released!', 'success')
+    except Exception as e:
+        print(f"Error releasing Pokemon: {e}")
+        db.session.rollback()
+        flash('An error occurred while releasing the Pokemon', 'error')
+  
+    return redirect(request.referrer)
+
 
 if __name__ == "__main__":
   app.run(host='0.0.0.0', port=8080)
