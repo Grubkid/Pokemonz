@@ -1,0 +1,16 @@
+{
+  "name": "Pokemonz",
+  "version": "2.2.0",
+  "main": "test.js",
+  "scripts": {
+    "update-test": "echo 'Script removed for privacy'",
+    "init": "flask init",
+    "start": "flask run",
+    "test": "echo 'Script removed for privacy'"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "testsuite3": "^2.0.0"
+  }
+}

@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block title %}{% endblock %}
+
+{% block page %}{% endblock %}
+
+{% block link%}
+<ul id="nav-mobile" class="right">
+    <li><a href="/logout">Logout</a></li>
+</ul>
+{% endblock %}
+
+{% block styles%}
+
+    td{
+        padding: 2px;
+    }
+
+    .collection .collection-item.active{
+        background-color: #E53935;
+    }
+{% endblock %}
+
+
+{% block content %}
+<div class="row">
+    <div class="col m3 list-container collection" style="max-height: 88vh;">
+  
+    </div>
+    
+    <div class="col m3">
+
+            <p class="text-center">Selected Pokemon</p>
+
+            <div id="pokemon-detail">
+                 <!-- Show pokemon details here -->
+            </div>
+
+    </div>
+
+    <div class="col m6" >
+        <p class="text-center">Your Pokemon</p>
+        <table class="responsive-table" id="pokemon-table">
+            <!-- Captured pokemon content here -->
+            <thead>
+                <tr>
+                    <th>Pokemon</th>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+              <!-- show captured pokemon here with controls to rename and release for each pokemon -->
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+
+
+{% endblock %}
